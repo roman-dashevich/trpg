@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Бросок пула</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #15171b;
+    --panel: #1d2026;
+    --panel-border: #2c3038;
+    --panel-border-soft: #262930;
+    --text: #e9e6df;
+    --text-dim: #9a9ea6;
+    --text-faint: #686c74;
+    --skull: #b24a44;
+    --skull-bg: #2a1a19;
+    --blank: #5a5e67;
+    --blank-bg: #1f2126;
+    --diamond: #4f9d6e;
+    --diamond-bg: #16241c;
+    --burst: #4a84c4;
+    --burst-bg: #141f2c;
+    --line: #2c3038;
+    --crit: #b24a44;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eceae4;
+      --panel: #f6f4ef;
+      --panel-border: #d8d4ca;
+      --panel-border-soft: #e2ded3;
+      --text: #211f1b;
+      --text-dim: #5c584f;
+      --text-faint: #8a857a;
+      --skull-bg: #f3dcda;
+      --blank-bg: #e8e6e0;
+      --diamond-bg: #dcefe0;
+      --burst-bg: #d9e6f5;
+      --line: #d8d4ca;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171b;
+    --panel: #1d2026;
+    --panel-border: #2c3038;
+    --text: #e9e6df;
+    --text-dim: #9a9ea6;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    min-height: 100%;
+  }
+  .wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 28px 18px 40px;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.9rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 2px;
+  }
+  .subtitle {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin: 0 0 26px;
+    line-height: 1.5;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 18px 18px 20px;
+    margin-bottom: 16px;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .row:last-child { border-bottom: none; }
+  .row-label {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    flex: 1;
+  }
+  .row-label .sub { display: block; font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; }
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .stepper button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1.1rem;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .stepper button:active { background: var(--panel-border); }
+  .stepper .val {
+    width: 46px;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .val.adv { color: var(--diamond); }
+  .val.dis { color: var(--skull); }
+  input[type="number"] {
+    width: 64px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 7px 8px;
+    text-align: center;
+  }
+  input[type="number"]::-webkit-inner-spin-button { opacity: 0.6; }
+  .toggle {
+    position: relative;
+    width: 42px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--panel-border);
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .toggle.on { background: rgba(79,157,110,0.25); }
+  .toggle.on::after { transform: translateX(18px); background: var(--diamond); }
+
+  .roll-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 9px;
+    border: 1px solid var(--panel-border);
+    background: var(--diamond);
+    color: #0d1a13;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .roll-btn:active { transform: translateY(1px); }
+
+  .dice-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0 2px;
+  }
+  @keyframes dieFloatIn {
+    from { opacity: 0; transform: translateY(-9px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes typeReveal {
+    from { width: 0; }
+    to { width: calc((var(--chars) + 1) * 1ch); }
+  }
+  @keyframes resultFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .typewriter {
+    display: inline-block;
+    overflow: hidden;
+    white-space: pre;
+    vertical-align: top;
+    width: calc((var(--chars) + 1) * 1ch);
+    animation: typeReveal var(--dur) steps(var(--chars), end) both;
+    animation-delay: var(--delay);
+  }
+  .die {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    border: 1px solid var(--panel-border-soft);
+    position: relative;
+    flex-shrink: 0;
+    animation: dieFloatIn 240ms ease-out both;
+  }
+  .die.skull { background: var(--skull-bg); color: var(--skull); --icon-fill: var(--skull); --icon-cut: var(--skull-bg); }
+  .die.blank { background: var(--blank-bg); color: var(--blank); }
+  .die.diamond { background: var(--diamond-bg); color: var(--diamond); --icon-fill: var(--diamond); --icon-cut: var(--diamond-bg); }
+  .die.burst { background: var(--burst-bg); color: var(--burst); --icon-fill: var(--burst); --icon-cut: var(--burst-bg); }
+  .die svg { width: 19px; height: 19px; display: block; }
+  .legend .die svg { width: 11px; height: 11px; }
+  .die.spent {
+    opacity: 0.3;
+  }
+  .die.spent::after {
+    content: "";
+    position: absolute;
+    left: 10%; right: 10%; top: 48%; height: 1.5px;
+    background: currentColor;
+  }
+  .die.placeholder {
+    background: transparent;
+    border: 1px dashed var(--panel-border);
+  }
+
+  @keyframes lineFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .log-line {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+    padding-left: 10px;
+    border-left: 2px solid var(--line);
+    margin-bottom: 2px;
+    opacity: 0;
+    animation: lineFadeIn 60ms linear both;
+  }
+
+  .result-big {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    animation: resultFadeIn 400ms ease-out both;
+  }
+  .result-num {
+    font-family: 'Fraunces', serif;
+    font-size: 2.6rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .result-num.crit { color: var(--skull); }
+  .result-label {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    text-align: right;
+    line-height: 1.5;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    padding: 3px 8px;
+    border-radius: 5px;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+  .badge.crit { background: var(--skull-bg); color: var(--skull); }
+  .badge.pass { background: var(--diamond-bg); color: var(--diamond); }
+  .badge.fail { background: var(--blank-bg); color: var(--text-dim); }
+
+  .empty-state {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    text-align: center;
+    padding: 20px 10px;
+  }
+
+  .log-entry {
+    border-bottom: 1px solid var(--line);
+    padding: 10px 0;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .log-entry-head .n {
+    font-weight: 700;
+    color: var(--text);
+  }
+  .clear-link {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-family: inherit;
+    font-size: 0.72rem;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    margin-top: 10px;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend .die { width: 18px; height: 18px; font-size: 0.6rem; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Бросок пула</h1>
+  <p class="subtitle">Сформируй пул, задай модификатор — и смотри весь расчёт по шагам: переброс Помехи/Преимущества, сокращение, взрыв.</p>
+
+  <div class="panel">
+    <div class="row">
+      <div class="row-label">Пул<span class="sub">Атрибут + Умения + прочее</span></div>
+      <div class="stepper">
+        <button onclick="changePool(-1)">−</button>
+        <div class="val" id="poolVal">12</div>
+        <button onclick="changePool(1)">+</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="row-label" id="modLabel">Модификатор<span class="sub">0 — нейтрально</span></div>
+      <div class="stepper">
+        <button onclick="changeMod(-1)">−</button>
+        <div class="val" id="modVal">0</div>
+        <button onclick="changeMod(1)">+</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="row-label">Сложность<span class="sub">необязательно, 0 — не проверять</span></div>
+      <input type="number" id="diffInput" value="0" min="0" inputmode="numeric">
+    </div>
+    <div class="row">
+      <div class="row-label">Взрыв шестёрок<span class="sub">опциональное правило</span></div>
+      <button class="toggle" id="explodeToggle" onclick="toggleExplode()"></button>
+    </div>
+  </div>
+
+  <button class="roll-btn" onclick="doRoll()">Бросить пул</button>
+
+  <div class="legend" id="legend"></div>
+
+  <div id="currentResult" style="margin-top:18px;"></div>
+
+  <div class="panel" style="margin-top:22px;">
+    <div class="row" style="border-bottom:none; padding-bottom:4px;">
+      <div class="row-label" style="color:var(--text); font-size:0.82rem;">Журнал бросков</div>
+      <button class="clear-link" onclick="clearLog()">очистить</button>
+    </div>
+    <div id="logList"><div class="empty-state">Пока пусто — первый бросок появится здесь.</div></div>
+  </div>
+</div>
+
+<script>
+const SVG_SKULL = `<svg viewBox="0 0 150 150"><path d="m 75.000643,135.29654 v 0 l -0.343403,0.0187 -0.310739,0.0558 -0.278658,0.092 -0.247514,0.12703 -0.217658,0.15983 -0.189439,0.19025 -0.301841,0.4619 -0.213851,0.54971 -0.145827,0.60965 -0.175274,1.282 -0.07481,0.61263 -0.09543,0.55674 -0.135114,0.47886 -0.190025,0.38637 -0.255242,0.28978 -0.3259,0.19671 -0.397146,0.11297 -0.464703,0.0431 -0.52459,-0.0113 -0.573942,-0.0499 -1.243504,-0.16508 -1.274479,-0.20256 -0.61197,-0.10713 -0.576282,-0.11006 -0.527401,-0.11533 -0.465874,-0.12644 -0.39258,-0.14987 -0.309216,-0.18909 -0.219883,-0.24528 -0.130956,-0.31496 -0.05066,-0.39282 0.01314,-0.47008 0.05456,-0.53975 0.06978,-0.59462 0.05702,-0.62908 0.01648,-0.63863 -0.04961,-0.62077 -0.13687,-0.57488 -0.238148,-0.50287 -0.158588,-0.21661 -0.183997,-0.19026 -0.207529,-0.16158 -0.228079,-0.13113 -0.500705,-0.16567 -0.526464,-0.0344 -0.510951,0.0954 -0.461835,0.21662 -0.393046,0.32256 -0.317881,0.40861 -0.246869,0.47185 -0.187744,0.50931 -0.145769,0.52161 -0.124342,0.50873 -0.124928,0.473 -0.147173,0.41799 -0.188795,0.34774 -0.2457,0.26695 -0.312026,0.18265 -0.380871,0.10069 -0.44624,0.0251 -0.503398,-0.041 -0.548534,-0.0966 -0.579035,-0.14166 -0.593107,-0.1768 -1.158391,-0.41858 -0.530328,-0.22421 -0.475826,-0.2289 -0.406747,-0.23826 -0.325959,-0.25992 -0.237855,-0.29681 -0.148694,-0.34832 -0.0665,-0.40746 6.26e-4,-0.46599 0.04636,-0.51516 0.06603,-0.54678 0.05711,-0.55497 0.01982,-0.53623 -0.04223,-0.49235 -0.122293,-0.42911 -0.211102,-0.35476 -0.298503,-0.281 -0.373788,-0.21777 -0.42624,-0.17563 -0.886677,-0.33779 -0.402239,-0.2125 -0.349727,-0.25817 -0.290542,-0.30323 -0.231297,-0.34014 -0.175098,-0.36705 -0.122996,-0.38463 -0.07487,-0.39456 -0.03021,-0.40218 0.01212,-0.41096 0.05305,-0.42619 0.09278,-0.44901 0.1309,-0.47945 0.16614,-0.51633 0.197461,-0.55674 0.223687,-0.59888 0.243826,-0.64103 0.257055,-0.68171 0.262677,-0.71966 0.508667,-1.53484 0.426884,-1.61956 0.159468,-0.82139 0.11082,-0.81654 0.05281,-0.8012 -0.01447,-0.77432 -0.09068,-0.73644 -0.174864,-0.68625 -0.264549,-0.62504 -0.355758,-0.55503 -0.443276,-0.47928 -0.522015,-0.40118 -0.58836,-0.3235 -0.640287,-0.24821 -0.677056,-0.17704 -0.698541,-0.11106 -0.704964,-0.0516 -0.696889,4.6e-4 -0.675979,0.0444 -0.645865,0.0801 -0.61241,0.10888 -0.583132,0.13114 -1.125292,0.30911 -1.16891,0.34011 -0.631927,0.16743 -0.673022,0.1569 -0.715098,0.13757 -0.753119,0.10889 -0.783256,0.0709 -0.803084,0.0221 -0.811457,-0.0362 -0.807903,-0.10362 -0.792137,-0.17973 -0.764067,-0.26355 -0.724053,-0.35412 -0.673608,-0.44994 -0.615635,-0.54907 -0.55433,-0.64916 -0.494149,-0.74761 -0.438593,-0.84219 -0.389833,-0.93093 -0.348791,-1.01248 -0.31548,-1.08555 -0.289019,-1.14948 -0.267711,-1.20397 -0.249329,-1.24908 -0.446379,-2.5961 -0.371153,-2.664428 -0.281935,-2.658839 -0.101337,-1.3053 -0.07101,-1.278331 -0.03784,-1.243861 -0.0021,-1.202502 0.03567,-1.154908 0.07476,-1.10181 0.11439,-1.044148 0.153614,-0.982795 0.191312,-0.918868 0.226146,-0.853418 0.256531,-0.787618 0.280413,-0.722696 0.295986,-0.659996 0.301079,-0.601046 0.29382,-0.547365 0.272745,-0.50053 0.238088,-0.461892 0.192075,-0.433207 0.138861,-0.413889 0.08302,-0.405109 0.02838,-0.406863 -0.02244,-0.418021 -0.06773,-0.440805 -0.106607,-0.472087 -0.138392,-0.511466 -0.163155,-0.557431 -0.181128,-0.608219 -0.193304,-0.661853 -0.201089,-0.716303 -0.206302,-0.769439 -0.210807,-0.819547 -0.215434,-0.865714 -0.22035,-0.907943 -0.224858,-0.946957 -0.45838,-2.00178 -0.45844,-2.13425 -0.443217,-2.255119 -0.4102,-2.367016 -0.356167,-2.472895 -0.279477,-2.573773 -0.103737,-1.323027 -0.07581,-1.346092 -0.04497,-1.368291 -0.01123,-1.38946 0.02533,-1.409383 0.06463,-1.427816 0.106604,-1.444454 0.151036,-1.459013 0.197814,-1.471208 0.246751,-1.480738 0.297625,-1.487207 0.350255,-1.490093 0.404404,-1.488758 0.45967,-1.482541 0.515867,-1.471003 0.572653,-1.453954 0.629743,-1.431435 0.686791,-1.403691 0.74352,-1.371126 0.799677,-1.334273 0.855023,-1.293768 0.909332,-1.250248 0.962393,-1.204228 1.014016,-1.15615 1.064004,-1.106399 1.112207,-1.055335 1.158467,-1.003349 1.202671,-0.950808 1.244676,-0.898063 1.284413,-0.845427 1.32178,-0.793196 1.356706,-0.741605 1.389162,-0.690848 1.419088,-0.641206 1.44648,-0.592793 1.47133,-0.545606 1.493646,-0.50053 1.513475,-0.456624 1.530843,-0.414474 1.545819,-0.374081 1.558469,-0.335443 1.568914,-0.2985616 3.160786,-0.4940906 3.178882,-0.3676409 3.184174,-0.2528995 3.179696,-0.1475248 3.169198,-0.049614 v 0 l 3.168989,0.048408 3.179696,0.1475246 3.184174,0.2528994 3.178864,0.3676409 3.160774,0.4940906 1.568915,0.2985619 1.558492,0.335443 1.545789,0.37408 1.530862,0.414475 1.513474,0.456624 1.49363,0.50053 1.47133,0.545606 1.44651,0.591944 1.4191,0.641212 1.38913,0.690871 1.3567,0.741604 1.32181,0.793198 1.28441,0.845427 1.24464,0.898063 1.20268,0.950808 1.15848,1.003349 1.11223,1.055334 1.06399,1.106401 1.01399,1.156147 0.96237,1.20423 0.90932,1.250248 0.85501,1.293768 0.79967,1.334273 0.74354,1.371124 0.6868,1.403693 0.62973,1.431434 0.57254,1.453955 0.51576,1.471003 0.45955,1.482541 0.40452,1.488759 0.35008,1.490092 0.29738,1.487207 0.24647,1.480738 0.19786,1.471207 0.15104,1.459014 0.10655,1.444454 0.0645,1.427817 0.0253,1.40938 -0.0113,1.389461 -0.045,1.368292 -0.0761,1.346092 -0.10361,1.323027 -0.27925,2.573773 -0.35594,2.472894 -0.41037,2.367017 -0.44316,2.255119 -0.45839,2.134249 -0.45837,2.001769 -0.2248,0.946969 -0.22011,0.90792 -0.21544,0.865713 -0.21075,0.819524 -0.20607,0.76941 -0.20079,0.716314 -0.19319,0.661871 -0.18088,0.608247 -0.16335,0.557315 -0.13815,0.511654 -0.10655,0.471844 -0.0679,0.440818 -0.0224,0.418572 0.0284,0.406864 0.0831,0.405107 0.13874,0.413889 0.19202,0.433207 0.23826,0.461893 0.27281,0.500531 0.29388,0.547363 0.3009,0.601047 0.29621,0.659997 0.28042,0.722695 0.25642,0.787618 0.22597,0.853417 0.19143,0.918869 0.15338,0.982795 0.11415,1.044149 0.0748,1.10181 0.0357,1.154907 -0.002,1.202502 -0.0379,1.243832 -0.0709,1.278313 -0.10127,1.305301 -0.28217,2.658839 -0.37115,2.664395 -0.44608,2.59609 -0.2494,1.24909 -0.26754,1.20398 -0.28919,1.14946 -0.31553,1.08554 -0.34891,1.01247 -0.38989,0.93098 -0.43847,0.84217 -0.4941,0.74765 -0.55439,0.64916 -0.61562,0.54912 -0.67356,0.45018 -0.72406,0.35418 -0.76408,0.26345 -0.79212,0.17972 -0.80793,0.1036 -0.81145,0.0362 -0.80307,-0.0221 -0.78322,-0.0709 -0.75314,-0.10888 -0.71509,-0.13758 -0.67305,-0.15688 -0.63195,-0.16743 -1.16891,-0.34014 -1.12528,-0.30909 -0.58307,-0.13113 -0.6124,-0.10889 -0.64589,-0.0801 -0.67598,-0.0443 -0.69688,-4.5e-4 -0.70496,0.0516 -0.69852,0.11122 -0.67704,0.1768 -0.64025,0.24822 -0.58836,0.32373 -0.52219,0.40101 -0.443152,0.47945 -0.355933,0.55498 -0.26461,0.62504 -0.175045,0.68623 -0.0907,0.73645 -0.01448,0.77475 0.05284,0.8012 0.11065,0.81653 0.159233,0.82139 0.426768,1.61955 0.508729,1.53485 0.26284,0.71965 0.25701,0.68172 0.24412,0.64102 0.22362,0.59889 0.19728,0.55672 0.16627,0.51634 0.13113,0.47946 0.0925,0.44901 0.053,0.42618 0.0121,0.41096 -0.0302,0.40219 -0.075,0.39457 -0.12293,0.38461 -0.17505,0.36706 -0.23123,0.34012 -0.29037,0.30325 -0.34949,0.25818 -0.40218,0.2125 -0.886675,0.33778 -0.426182,0.17563 -0.373494,0.21777 -0.298562,0.281 -0.211335,0.35476 -0.122351,0.42911 -0.04223,0.49233 0.01981,0.53624 0.05711,0.55498 0.06615,0.54678 0.04636,0.51516 6.26e-4,0.466 -0.06673,0.40745 -0.148695,0.34831 -0.237678,0.29681 -0.326077,0.25993 -0.406864,0.23826 -0.475942,0.22889 -0.530387,0.22421 -1.158362,0.41859 -0.593083,0.17679 -0.578977,0.14166 -0.548534,0.0966 -0.503458,0.041 -0.446086,-0.0251 -0.381106,-0.10069 -0.312026,-0.18265 -0.245875,-0.26695 -0.188503,-0.34773 -0.146939,-0.41799 -0.124693,-0.47302 -0.124109,-0.50873 -0.145768,-0.52159 -0.187919,-0.50931 -0.247044,-0.47185 -0.317881,-0.40863 -0.392814,-0.32256 -0.461893,-0.2166 -0.511068,-0.0954 -0.526288,0.0344 -0.50053,0.16567 -0.228312,0.13114 -0.207237,0.16157 -0.183821,0.19026 -0.158647,0.2166 -0.238264,0.50288 -0.136988,0.57487 -0.04961,0.62078 0.01648,0.63862 0.05702,0.6291 0.06967,0.5946 0.05456,0.53976 0.01313,0.47009 -0.05066,0.39281 -0.131132,0.31495 -0.220117,0.24529 -0.309099,0.18908 -0.392813,0.14987 -0.465992,0.12646 -0.527458,0.11533 -0.576049,0.11005 -0.61197,0.10713 -1.274479,0.20256 -1.243505,0.16508 -0.57394,0.0499 -0.524591,0.0112 -0.464727,-0.0441 -0.397145,-0.11298 -0.325872,-0.1967 -0.25527,-0.28978 -0.190026,-0.38637 -0.135108,-0.47887 -0.09542,-0.55673 -0.0748,-0.61264 -0.175274,-1.282 -0.145814,-0.60965 -0.213847,-0.54971 -0.301812,-0.4619 -0.189445,-0.19025 -0.217675,-0.15982 -0.247508,-0.12703 -0.278634,-0.0919 -0.310727,-0.0558 z" fill="var(--icon-fill)"/><path d="m 81.737271,86.62983 v 0 l 0.107014,-0.675979 0.155955,-0.666437 0.206476,-0.649577 0.258109,-0.625984 0.310446,-0.596596 0.362782,-0.562585 0.414474,-0.525119 0.46482,-0.48648 0.513409,-0.446671 0.560243,-0.40745 0.604266,-0.368811 0.645596,-0.331345 0.684057,-0.295635 0.719536,-0.26168 0.751731,-0.229484 0.780652,-0.199626 1.634362,-0.320222 1.708652,-0.232411 1.757183,-0.161575 1.783936,-0.10069 1.793303,-0.04013 1.788502,0.02736 1.771055,0.106546 1.73932,0.196114 1.6887,0.28978 1.61511,0.380521 1.51745,0.464234 0.71497,0.26168 0.68224,0.280414 0.64705,0.298563 0.60955,0.315538 0.57019,0.331931 0.52863,0.347736 0.48531,0.363543 0.44141,0.379349 0.3969,0.395156 0.35301,0.412132 0.30969,0.430281 0.26753,0.450769 0.22714,0.473017 0.18968,0.497602 0.15395,0.524532 0.12177,0.553803 0.0913,0.584245 0.0639,0.616384 0.0375,0.64829 0.0123,0.679082 -0.0129,0.707533 -0.0385,0.732647 -0.15748,1.523837 -0.27398,1.569264 -0.40217,1.571957 -0.25232,0.772982 -0.2892,0.75671 -0.32665,0.734636 -0.3653,0.707065 -0.40511,0.674223 -0.44551,0.636523 -0.4853,0.594545 -0.52512,0.549123 -0.56317,0.50053 -0.59976,0.4496 -0.63389,0.3975 -0.66502,0.3448 -0.69273,0.29271 -0.71655,0.24119 -0.73651,0.19143 -0.75255,0.14343 -0.76508,0.0972 -0.77456,0.0532 -0.7813,0.0109 -0.78569,-0.0296 -0.78796,-0.0679 -0.78832,-0.10421 -1.570786,-0.3091 -1.552411,-0.42794 -1.523076,-0.52746 -1.485023,-0.6079 -1.439829,-0.67019 -1.38843,-0.714954 -1.331059,-0.743712 -1.267308,-0.75706 -1.196471,-0.756181 -1.118027,-0.745994 -1.032497,-0.736979 -0.940704,-0.741371 -0.843057,-0.767363 -0.739087,-0.818 -0.328418,-0.435551 -0.299908,-0.457208 -0.270403,-0.481211 -0.239963,-0.50814 -0.208465,-0.536241 -0.175684,-0.564927 -0.141494,-0.593551 -0.105551,-0.620014 -0.06762,-0.642962 -0.02741,-0.660992 0.01513,-0.672994 z" fill="var(--icon-cut)"/><path d="m 75.000643,113.26883 v 0 l -0.279476,0.0135 -0.229835,0.049 -0.204426,0.10537 -0.210047,0.18557 -0.245524,0.28393 -0.301137,0.38404 -0.360382,0.46247 -0.405927,0.49468 -0.429402,0.46716 -0.434496,0.38052 -0.215725,0.14166 -0.214848,0.10246 -0.216955,0.062 -0.225209,0.0226 -0.241834,-0.013 -0.266365,-0.0436 -0.29581,-0.0696 -0.325901,-0.0931 -0.723802,-0.25289 -0.756338,-0.35183 -0.358568,-0.22188 -0.327189,-0.25817 -0.282697,-0.29914 -0.226555,-0.34482 -0.160873,-0.39574 -0.08892,-0.45077 -0.01476,-0.50873 0.05664,-0.56902 0.121122,-0.63043 0.176738,-0.69103 0.22351,-0.74939 0.262853,-0.80378 0.295635,-0.85277 0.32268,-0.89522 0.705367,-1.88632 1.533302,-3.8943 0.390589,-0.93859 0.388951,-0.90295 0.385672,-0.856694 0.381046,-0.799973 0.375369,-0.733291 0.36887,-0.657245 0.361787,-0.572537 0.354293,-0.480042 0.346567,-0.381105 0.338662,-0.276315 0.330643,-0.167429 0.322622,-0.05605 v 0 l 0.322681,0.05612 0.330643,0.167428 0.338663,0.276316 0.346565,0.381105 0.354294,0.480041 0.361787,0.572537 0.36887,0.657245 0.375368,0.73335 0.381047,0.799972 0.385671,0.856687 0.38901,0.90295 0.390589,0.93854 1.533302,3.89429 0.705367,1.88627 0.322681,0.89521 0.295635,0.85278 0.262852,0.80377 0.223511,0.7494 0.176737,0.69103 0.121123,0.63043 0.05664,0.56902 -0.01476,0.50873 -0.08892,0.45077 -0.160871,0.39574 -0.226556,0.34481 -0.282697,0.29914 -0.327189,0.25818 -0.358567,0.22187 -0.756339,0.35183 -0.723802,0.2529 -0.3259,0.0931 -0.295812,0.0697 -0.266363,0.0436 -0.241835,0.013 -0.225209,-0.0226 -0.216955,-0.062 -0.214847,-0.10304 -0.215726,-0.14167 -0.434495,-0.38052 -0.429403,-0.46716 -0.405927,-0.49468 -0.360382,-0.46247 -0.301136,-0.38404 -0.245525,-0.28393 -0.210046,-0.18557 -0.204427,-0.10537 -0.229835,-0.049 z" fill="var(--icon-cut)"/><path d="m 68.264017,86.62983 v 0 l -0.107014,-0.675979 -0.155954,-0.666437 -0.206476,-0.649577 -0.258109,-0.625984 -0.310447,-0.596596 -0.362782,-0.562585 -0.414474,-0.525119 -0.464936,-0.48648 -0.513645,-0.446671 -0.560183,-0.40745 -0.604242,-0.368811 -0.645602,-0.330982 -0.684082,-0.295501 -0.719511,-0.261423 -0.751755,-0.229383 -0.780674,-0.199638 -1.634347,-0.320258 -1.708645,-0.232228 -1.75716,-0.161615 -1.783929,-0.100564 -1.793275,-0.04013 -1.788508,0.02736 -1.771086,0.106546 -1.739334,0.196115 -1.688696,0.28978 -1.615091,0.38052 -1.517455,0.464234 -0.714968,0.261681 -0.682243,0.280415 -0.64706,0.298561 -0.609546,0.31554 -0.569902,0.33193 -0.528395,0.347736 -0.485427,0.363544 -0.441462,0.379349 -0.397028,0.395155 -0.352773,0.412132 -0.30945,0.430281 -0.267417,0.45077 -0.227317,0.473015 -0.189441,0.497604 -0.15414,0.524532 -0.121531,0.553802 -0.0915,0.584245 -0.06369,0.616385 -0.03753,0.648288 -0.01228,0.679082 0.01283,0.707533 0.03841,0.732648 0.157594,1.523835 0.274033,1.569266 0.401946,1.571957 0.252607,0.772982 0.288961,0.756708 0.326662,0.734639 0.365474,0.707064 0.405225,0.674223 0.445385,0.63652 0.485484,0.594554 0.525,0.54911 0.563288,0.50054 0.599781,0.44959 0.633888,0.39749 0.665032,0.34482 0.692704,0.29271 0.71656,0.2412 0.736482,0.19143 0.752563,0.14342 0.765103,0.0972 0.77454,0.0532 0.781284,0.0109 0.785668,-0.0296 0.787958,-0.0679 0.788343,-0.1042 1.570792,-0.30911 1.552382,-0.42793 1.523087,-0.52746 1.485024,-0.60789 1.439812,-0.67013 1.3884,-0.714963 1.331047,-0.743714 1.267336,-0.757061 1.196467,-0.75618 1.118032,-0.745995 1.032509,-0.73698 0.940733,-0.741371 0.843027,-0.767362 0.739087,-0.818 0.328478,-0.435549 0.299907,-0.45721 0.270403,-0.481797 0.239963,-0.50814 0.208465,-0.536241 0.175684,-0.564926 0.141495,-0.593552 0.105551,-0.620013 0.06762,-0.642962 0.02741,-0.660993 -0.01513,-0.672993 z" fill="var(--icon-cut)"/></svg>`;
+const SVG_EXPLOSION = `<svg viewBox="0 0 150 150"><path d="M 61.073948,30.207362 26.269781,19.753808 37.590581,50.072734 9.0933901,50.983605 31.474743,75.316817 4.3982277,93.634819 36.812295,99.62437 l -6.657069,29.73296 28.823309,-13.03181 9.965504,30.66309 11.498658,-27.90341 29.436573,21.31084 -7.03823,-32.44192 26.20267,6.83823 L 116.93179,95.167974 145.60177,87.962145 118.61825,72.170656 139.92918,54.41045 103.62454,52.45859 113.90436,24.22165 88.530142,33.330344 76.038223,3.0114181 Z" fill="var(--icon-fill)"/><path d="m 63.080561,98.703054 a 8.8805871,8.8805871 0 1 0 17.761174,0 8.8805871,8.8805871 0 1 0 -17.761174,0 z" fill="var(--icon-cut)"/><path d="m 72.471173,39.542604 v 0 l 1.128912,0.0182 1.12215,0.05973 1.102397,0.101795 1.069496,0.144069 1.023655,0.186448 0.965249,0.228668 0.895081,0.270781 0.8141,0.312735 0.723645,0.354688 0.625256,0.396855 0.520693,0.439446 0.41208,0.482786 0.301342,0.527293 0.191666,0.573491 0.08571,0.62202 -0.0125,0.673645 -0.10063,0.72896 -0.175693,0.787879 -0.237985,0.849644 -0.287498,0.912898 -0.324767,0.976123 -0.351919,1.038003 -0.368425,1.097404 -0.375347,1.153375 -0.373748,1.205061 -0.363632,1.251679 -0.347128,1.292515 -0.323702,1.326955 -0.294953,1.354492 -0.261411,1.374776 -0.224141,1.3875 -0.18368,1.392559 -0.141621,1.389791 -0.0985,1.379355 -0.05483,1.361306 -0.01251,1.335964 0.02802,1.303646 0.06549,1.264835 0.09955,1.220006 0.12831,1.169906 0.15067,1.115336 0.16611,1.057196 0.173564,0.996396 0.171435,0.933785 0.160253,0.870216 0.138426,0.806381 0.107009,0.743024 0.06549,0.680627 0.01413,0.619826 -0.04577,0.560888 -0.113402,0.504188 -0.187939,0.450415 -0.2678,0.398771 -0.350855,0.350322 -0.43604,0.305069 -0.520159,0.262475 -0.600926,0.222013 -0.676314,0.184744 -0.744036,0.150139 -0.802227,0.117129 -0.849346,0.08626 -0.884112,0.05697 -1.819228,0.03157 -0.907538,-0.02372 -0.887732,-0.04947 -0.854509,-0.07508 -0.808723,-0.101693 -0.751278,-0.12831 -0.683767,-0.157059 -0.607953,-0.186874 -0.526017,-0.219352 -0.440299,-0.255021 -0.352983,-0.293888 -0.266736,-0.336479 -0.184212,-0.383332 -0.107549,-0.433911 -0.03778,-0.489811 0.02328,-0.54923 0.07507,-0.612851 0.116065,-0.680095 0.146411,-0.750371 0.165579,-0.823151 0.174096,-0.897528 0.171968,-0.972545 0.160253,-1.047028 0.140023,-1.119808 0.112338,-1.189551 0.07879,-1.254933 0.04108,-1.314559 2.66e-4,-1.367323 -0.04218,-1.412205 -0.08518,-1.448461 -0.127246,-1.4754 -0.167708,-1.492651 -0.205508,-1.499785 -0.240115,-1.49675 -0.269928,-1.48344 -0.294953,-1.460068 -0.313586,-1.426946 -0.326898,-1.384483 -0.332752,-1.333344 -0.33169,-1.274365 -0.323168,-1.208574 -0.306666,-1.137117 -0.282174,-1.061226 -0.250231,-0.98225 -0.209767,-0.901639 -0.161852,-0.821187 -0.105948,-0.743013 -0.04269,-0.669596 0.02792,-0.603156 0.104888,-0.544873 0.187408,-0.494711 0.273656,-0.451427 0.362568,-0.413572 0.452011,-0.379605 0.540551,-0.348352 0.627119,-0.318805 0.710389,-0.29 0.789077,-0.261198 0.86207,-0.231756 0.928248,-0.201142 0.9866,-0.168986 1.036113,-0.135071 1.075885,-0.09924 1.105112,-0.06164 z" fill="var(--icon-cut)"/></svg>`;
+const SVG_SUCCESS = `<svg viewBox="0 0 150 150"><path d="M 75,123.67339 A 55.343602,55.343602 0 0 0 26.326609,75 55.343602,55.343602 0 0 0 75,26.326609 55.343602,55.343602 0 0 0 123.67339,75 55.343602,55.343602 0 0 0 75,123.67339 Z" fill="var(--icon-fill)"/></svg>`;
+
+let pool = 12;
+let mod = 0;
+let explode = false;
+let log = [];
+
+function changePool(d) {
+  pool = Math.max(1, pool + d);
+  document.getElementById('poolVal').textContent = pool;
+}
+function changeMod(d) {
+  mod = mod + d;
+  document.getElementById('modVal').textContent = (mod > 0 ? '+' : '') + mod;
+  const val = document.getElementById('modVal');
+  val.className = 'val' + (mod > 0 ? ' adv' : mod < 0 ? ' dis' : '');
+  const lbl = document.getElementById('modLabel');
+  if (mod > 0) lbl.innerHTML = 'Преимущество <span class="sub">перебрасывает провалы</span>';
+  else if (mod < 0) lbl.innerHTML = 'Помеха <span class="sub">перебрасывает успехи</span>';
+  else lbl.innerHTML = 'Модификатор <span class="sub">0 — нейтрально</span>';
+}
+function toggleExplode() {
+  explode = !explode;
+  document.getElementById('explodeToggle').className = 'toggle' + (explode ? ' on' : '');
+}
+
+
+function pluralRu(n, one, few, many) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+function rollDie() { return 1 + Math.floor(Math.random() * 6); }
+function faceType(v) {
+  if (v && typeof v === 'object') return v.type; // принудительный тип (напр. взорвавшаяся 6 показана как успех)
+  if (v === 1) return 'skull';
+  if (v === 2 || v === 3) return 'blank';
+  if (v === 4 || v === 5) return 'diamond';
+  return 'burst';
+}
+function faceIconSVG(v) {
+  const t = faceType(v);
+  if (t === 'blank') return ''; // провал — пустой кубик, без иконки
+  if (t === 'skull') return SVG_SKULL;
+  if (t === 'diamond') return SVG_SUCCESS;
+  return SVG_EXPLOSION;
+}
+
+const DIE_STEP = 75; // мс на кубик
+const CHAR_MS = 14;   // мс на символ в тексте
+const GAP = 120;      // пауза между блоками
+
+function dieEl(value, opts) {
+  opts = opts || {};
+  const t = faceType(value);
+  let cls = 'die ' + t;
+  if (opts.spent) cls += ' spent';
+  const delay = opts.delay || 0;
+  return `<div class="${cls}" style="animation-delay:${delay}ms">${faceIconSVG(value)}</div>`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function typedLine(text, offset) {
+  const dur = Math.max(80, text.length * CHAR_MS);
+  const html = `<div class="log-line" style="animation-delay:${offset}ms"><span class="typewriter" style="--chars:${text.length};--dur:${dur}ms;--delay:${offset}ms;">${escapeHtml(text)}</span></div>`;
+  return {html, offset: offset + dur + GAP};
+}
+
+function diceRowHTML(values, spentFlags, startOffset) {
+  startOffset = startOffset || 0;
+  const row = values.map((v,i) => dieEl(v, {spent: spentFlags && spentFlags[i], delay: startOffset + i*DIE_STEP})).join('');
+  return {html: '<div class="dice-row">'+row+'</div>', offset: startOffset + values.length*DIE_STEP};
+}
+
+function rerollRowHTML(row, startOffset) {
+  startOffset = startOffset || 0;
+  const htmlRow = row.map((v,i) => v === null
+    ? `<div class="die placeholder" style="animation-delay:${startOffset+i*DIE_STEP}ms"></div>`
+    : dieEl(v, {delay: startOffset + i*DIE_STEP})
+  ).join('');
+  return {html: '<div class="dice-row">'+htmlRow+'</div>', offset: startOffset + row.length*DIE_STEP};
+}
+
+function resolvePool(N, modifier, explodeOn) {
+  const lines = [];
+  let values = [];
+  for (let i = 0; i < N; i++) values.push(rollDie());
+  lines.push({type:'text', text:`Бросок пула (${N}):`});
+  lines.push({type:'dice', values: values.slice()});
+
+  // Чейз Помехи/Преимущества
+  if (modifier !== 0) {
+    const isAdv = modifier > 0;
+    let budget = Math.abs(modifier);
+    const targetVals = isAdv ? [2,3] : [4,5];
+    const word = isAdv
+      ? pluralRu(budget, 'провал', 'провала', 'провалов')
+      : pluralRu(budget, 'успех', 'успеха', 'успехов');
+    lines.push({type:'text', text: `Перебрасываем ${budget} ${word} если есть`});
+    let live = [];
+    for (let i=0;i<values.length;i++) if (targetVals.includes(values[i])) live.push(i);
+    if (!live.length) {
+      lines.push({type:'text', text: 'Подходящих кубиков для переброса не было.'});
+    }
+    while (budget > 0 && live.length > 0) {
+      const waveCount = Math.min(budget, live.length);
+      const waveIdxs = live.slice(0, waveCount);
+      const row = new Array(values.length).fill(null);
+      waveIdxs.forEach(idx => {
+        const r = rollDie();
+        values[idx] = r;
+        row[idx] = r;
+      });
+      budget -= waveCount;
+      lines.push({type:'reroll-row', row});
+      live = waveIdxs.filter(idx => targetVals.includes(values[idx]));
+      if (budget > 0 && live.length > 0) {
+        lines.push({type:'text', text: `Осталось очков ${isAdv ? 'преимущества' : 'помехи'}: ${budget}`});
+      }
+    }
+    lines.push({type:'dice', values: values.slice(), caption:'После переброса:'});
+  }
+
+  // Подсчет категорий
+  let a=0,b6=0,c45=0;
+  const idxSkull=[], idxSix=[], idxSucc=[];
+  values.forEach((v,i) => {
+    if (v===1) {a++; idxSkull.push(i);}
+    else if (v===6) {b6++; idxSix.push(i);}
+    else if (v===4||v===5) {c45++; idxSucc.push(i);}
+  });
+
+  // Сокращение: сначала 6 и 1, потом 1 и успех
+  const spentIdx = new Set();
+  let m1 = Math.min(idxSkull.length, idxSix.length);
+  for (let k=0;k<m1;k++) { spentIdx.add(idxSkull[k]); spentIdx.add(idxSix[k]); }
+  let remainingSkullIdx = idxSkull.slice(m1);
+  let remainingSixIdx = idxSix.slice(m1);
+  let m2 = Math.min(remainingSkullIdx.length, idxSucc.length);
+  for (let k=0;k<m2;k++) { spentIdx.add(remainingSkullIdx[k]); spentIdx.add(idxSucc[k]); }
+  let finalSkullIdx = remainingSkullIdx.slice(m2);
+  let finalSuccIdx = idxSucc.slice(m2);
+
+  if (m1 || m2) {
+    lines.push({type:'text', text: `Сокращение: сброшено ${m1} пар(ы) 6↔1, ${m2} пар(ы) успех↔1.`});
+    const spentArr = values.map((_,i)=>spentIdx.has(i));
+    lines.push({type:'dice', values: values.slice(), spent: spentArr, caption:'Погашенные кубики зачёркнуты:'});
+  }
+
+  const critFail = finalSkullIdx.length > 0;
+
+  // Взрыв / фикс
+  let total = finalSuccIdx.length; // по 1 за каждый уцелевший ромб
+  if (!critFail) {
+    if (explodeOn && remainingSixIdx.length) {
+      const sixSet = new Set(remainingSixIdx);
+      let cumRow = values.map((v,i) => sixSet.has(i) ? {type:'diamond'} : v);
+      let cumSpent = values.map((_,i) => spentIdx.has(i));
+
+      const net = {};
+      remainingSixIdx.forEach(idx => { net[idx] = 0; });
+      let activePos = remainingSixIdx.slice();    // позиции в cumRow, которые сейчас взорваны (успех) и ждут продолжения
+      let activeOrigin = remainingSixIdx.slice(); // к какой исходной шестёрке относится каждая такая позиция
+      let caption = 'Взрыв шестёрок:';
+      while (activePos.length) {
+        const newPos = [];
+        const newOrigin = [];
+        activePos.forEach((pos, k) => {
+          const origin = activeOrigin[k];
+          const r = rollDie();
+          cumRow.push(r); // как есть, без преобразования
+          cumSpent.push(false);
+          const thisNewPos = cumRow.length - 1;
+          if (r === 6) {
+            net[origin] += 1;
+            newPos.push(thisNewPos);
+            newOrigin.push(origin);
+          } else {
+            if (r === 4 || r === 5) net[origin] += 1;
+            else if (r === 1) { net[origin] -= 1; cumSpent[pos] = true; cumSpent[thisNewPos] = true; } // череп зачёркивает и себя, и успех, который его породил
+          }
+        });
+        lines.push({type:'dice', values: cumRow.slice(), spent: cumSpent.slice(), caption});
+        caption = 'Взрыв продолжается:';
+        newPos.forEach(p => { cumRow[p] = {type:'diamond'}; }); // эти новые шестёрки взрываются дальше - заменяем на успех
+        activePos = newPos;
+        activeOrigin = newOrigin;
+      }
+
+      remainingSixIdx.forEach(idx => { total += 1 + net[idx]; });
+    } else {
+      total += remainingSixIdx.length * 2;
+      if (remainingSixIdx.length) {
+        lines.push({type:'text', text: `Уцелевшие шестёрки (${remainingSixIdx.length}) дают по 2 успеха.`});
+      }
+    }
+  }
+  total = Math.max(0, total);
+
+  return {lines, total, critFail};
+}
+
+function renderLines(lines) {
+  let html = '';
+  let offset = 0;
+  lines.forEach(l => {
+    if (l.type === 'text') {
+      const r = typedLine(l.text, offset);
+      html += r.html; offset = r.offset;
+    } else if (l.type === 'dice') {
+      if (l.caption) {
+        const rc = typedLine(l.caption, offset);
+        html += rc.html; offset = rc.offset;
+      }
+      const r = diceRowHTML(l.values, l.spent, offset);
+      html += r.html; offset = r.offset + GAP;
+    } else if (l.type === 'reroll-row') {
+      if (l.caption) {
+        const rc = typedLine(l.caption, offset);
+        html += rc.html; offset = rc.offset;
+      }
+      const r = rerollRowHTML(l.row, offset);
+      html += r.html; offset = r.offset + GAP;
+    }
+  });
+  return {html, offset};
+}
+
+function doRoll() {
+  const N = pool;
+  const diff = parseInt(document.getElementById('diffInput').value) || 0;
+  const res = resolvePool(N, mod, explode);
+
+  const rendered = renderLines(res.lines);
+
+  let resultHTML = `<div class="panel">`;
+  resultHTML += rendered.html;
+  resultHTML += `<div class="result-big" style="animation-delay:${rendered.offset}ms">`;
+  resultHTML += `<div class="result-num ${res.critFail ? 'crit' : ''}">${res.critFail ? '0' : res.total}</div>`;
+  let labelHTML = '';
+  if (res.critFail) {
+    labelHTML += `<span class="badge crit">Критический провал</span>`;
+  } else if (diff > 0) {
+    labelHTML += diff + ' нужно&nbsp;· ';
+    labelHTML += res.total >= diff ? `<span class="badge pass">успех</span>` : `<span class="badge fail">не хватило</span>`;
+  } else {
+    labelHTML += pluralRu(res.total, 'успех', 'успеха', 'успехов');
+  }
+  resultHTML += `<div class="result-label">${labelHTML}</div>`;
+  resultHTML += `</div></div>`;
+
+  document.getElementById('currentResult').innerHTML = resultHTML;
+
+  log.unshift({pool:N, mod, explode, diff, total: res.critFail ? 0 : res.total, critFail: res.critFail});
+  if (log.length > 30) log.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('logList');
+  if (!log.length) {
+    el.innerHTML = '<div class="empty-state">Пока пусто — первый бросок появится здесь.</div>';
+    return;
+  }
+  el.innerHTML = log.map((e, i) => {
+    const modStr = e.mod === 0 ? '' : (e.mod > 0 ? ` · Преим. ${e.mod}` : ` · Помеха ${-e.mod}`);
+    const diffStr = e.diff > 0 ? ` · Слож. ${e.diff}` : '';
+    let resStr;
+    if (e.critFail) resStr = '<span style="color:var(--skull)">крит-провал</span>';
+    else if (e.diff > 0) resStr = `${e.total} усп. · ${e.total >= e.diff ? 'успех' : 'провал'}`;
+    else resStr = `${e.total} усп.`;
+    return `<div class="log-entry"><div class="log-entry-head"><span>Пул <span class="n">${e.pool}</span>${modStr}${diffStr}</span><span>${resStr}</span></div></div>`;
+  }).join('');
+}
+
+function clearLog() {
+  log = [];
+  renderLog();
+}
+
+function renderLegend() {
+  const items = [[1,'неудача'],[2,'провал'],[4,'успех'],[6,'взрыв']];
+  document.getElementById('legend').innerHTML = items.map(([v,label], i) =>
+    `<span>${dieEl(v, {delay: i*DIE_STEP})} ${label}</span>`
+  ).join('');
+}
+
+renderLog();
+renderLegend();
+</script>
+</body>
+</html>
