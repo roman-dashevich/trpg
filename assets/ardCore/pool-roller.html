@@ -198,8 +198,8 @@
     to { opacity: 1; transform: translateY(0); }
   }
   @keyframes typeReveal {
-    from { width: 0; }
-    to { width: calc((var(--chars) + 1) * 1ch); }
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0 0% 0 0); }
   }
   @keyframes resultFadeIn {
     from { opacity: 0; }
@@ -207,10 +207,11 @@
   }
   .typewriter {
     display: inline-block;
-    overflow: hidden;
-    white-space: pre;
+    width: 100%;
+    white-space: normal;
+    overflow-wrap: break-word;
     vertical-align: top;
-    width: calc((var(--chars) + 1) * 1ch);
+    clip-path: inset(0 100% 0 0);
     animation: typeReveal var(--dur) steps(var(--chars), end) both;
     animation-delay: var(--delay);
   }
@@ -557,6 +558,13 @@ function resolvePool(N, modifier, explodeOn) {
       let cumRow = values.map((v,i) => sixSet.has(i) ? {type:'diamond'} : v);
       let cumSpent = values.map((_,i) => spentIdx.has(i));
 
+      function describeRoll(r) {
+        if (r === 1) return 'неудача';
+        if (r === 2 || r === 3) return 'провал';
+        if (r === 4 || r === 5) return 'успех';
+        return 'взрыв';
+      }
+
       const net = {};
       remainingSixIdx.forEach(idx => { net[idx] = 0; });
       let activePos = remainingSixIdx.slice();    // позиции в cumRow, которые сейчас взорваны (успех) и ждут продолжения
@@ -565,9 +573,11 @@ function resolvePool(N, modifier, explodeOn) {
       while (activePos.length) {
         const newPos = [];
         const newOrigin = [];
+        const descr = [];
         activePos.forEach((pos, k) => {
           const origin = activeOrigin[k];
           const r = rollDie();
+          descr.push(describeRoll(r));
           cumRow.push(r); // как есть, без преобразования
           cumSpent.push(false);
           const thisNewPos = cumRow.length - 1;
@@ -582,6 +592,7 @@ function resolvePool(N, modifier, explodeOn) {
         });
         lines.push({type:'dice', values: cumRow.slice(), spent: cumSpent.slice(), caption});
         caption = 'Взрыв продолжается:';
+        lines.push({type:'text', text: `Выпало: ${descr.join(', ')}`});
         newPos.forEach(p => { cumRow[p] = {type:'diamond'}; }); // эти новые шестёрки взрываются дальше - заменяем на успех
         activePos = newPos;
         activeOrigin = newOrigin;
